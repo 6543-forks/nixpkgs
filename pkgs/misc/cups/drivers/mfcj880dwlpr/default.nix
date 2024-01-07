@@ -84,7 +84,7 @@ stdenv.mkDerivation rec {
 
   meta = with lib; {
     description  = "Brother MFC-J880DW LPR driver";
-    downloadPage = "https://support.brother.com/g/b/downloadtop.aspx?c=us&lang=en&prod=mfcj880dw_us_eu_as&os=128";
+    downloadPage = "https://support.brother.com/g/b/downloadlist.aspx?c=us&lang=en&prod=mfcj880dw_us_eu_as&os=128";
     homepage     = "http://www.brother.com/";
     sourceProvenance = with sourceTypes; [ binaryNativeCode ];
     license      = with licenses; unfree;

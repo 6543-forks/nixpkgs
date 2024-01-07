@@ -43,7 +43,7 @@ stdenv.mkDerivation rec {
     description = "Brother MFC-J880DW CUPS wrapper driver";
     license = with licenses; gpl2;
     platforms = with platforms; linux;
-    downloadPage = "https://support.brother.com/g/b/downloadtop.aspx?c=us&lang=en&prod=mfcj880dw_us_eu_as&os=128";
+    downloadPage = "https://support.brother.com/g/b/downloadlist.aspx?c=us&lang=en&prod=mfcj880dw_us_eu_as&os=128";
     maintainers = with maintainers; [ _6543 ];
   };
 }
