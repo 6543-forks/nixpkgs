@@ -350,6 +350,7 @@ in
         # Needed for the mysql_install_db command in the preStart script
         # which calls the hostname command.
         pkgs.nettools
+        cfg.package
       ];
 
       preStart = if isMariaDB then ''
@@ -481,6 +482,8 @@ in
           Group = cfg.group;
           # Runtime directory and mode
           RuntimeDirectory = "mysqld";
+          # Ensure MySQL binaries are in PATH
+          Environment = "PATH=${cfg.package}/bin:$PATH";
           RuntimeDirectoryMode = "0755";
           # Access write directories
           ReadWritePaths = [ cfg.dataDir ];
