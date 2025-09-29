@@ -27,6 +27,8 @@ in
       };
     };
 
+  interactive.sshBackdoor.enable = true;
+
   testScript = ''
     import json
 

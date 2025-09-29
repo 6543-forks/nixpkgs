@@ -127,6 +127,18 @@ in
       type = lib.types.nullOr lib.types.path;
     };
 
+    user = lib.mkOption {
+      type = lib.types.str;
+      default = "meilisearch";
+      description = "User account under which meilisearch runs.";
+    };
+
+    group = lib.mkOption {
+      type = lib.types.str;
+      default = "meilisearch";
+      description = "Group under which meilisearch runs.";
+    };
+
     settings = lib.mkOption {
       description = ''
         Configuration settings for Meilisearch.
@@ -223,6 +235,10 @@ in
       );
 
       serviceConfig = {
+        Type = "simple";
+        User = cfg.user;
+        Group = cfg.group;
+        Restart = "always";
         LoadCredential = lib.mkMerge (
           [
             (lib.mkIf (cfg.masterKeyFile != null) [ "master_key:${cfg.masterKeyFile}" ])
@@ -232,11 +248,15 @@ in
           ) secrets-with-path
         );
         ExecStart = "${lib.getExe cfg.package} --config-file-path \${RUNTIME_DIRECTORY}/config.toml";
-        DynamicUser = true;
         StateDirectory = "meilisearch";
-        WorkingDirectory = "%S/meilisearch";
+        WorkingDirectory = lib.mkDefault cfg.settings.db_path;
         RuntimeDirectory = "meilisearch";
         RuntimeDirectoryMode = "0700";
+        ReadWritePaths = [
+          cfg.settings.db_path
+          cfg.settings.dump_dir
+          cfg.settings.snapshot_dir
+        ];
 
         ProtectSystem = "strict";
         ProtectHome = true;
@@ -255,6 +275,7 @@ in
         RestrictSUIDSGID = true;
         LockPersonality = true;
         MemoryDenyWriteExecute = true;
+        RemoveIPC = true;
 
         # Meilisearch needs to determine cgroup memory limits to set its own memory limits.
         # This means this can't be set to "pid"
@@ -280,5 +301,26 @@ in
         UMask = "0077";
       };
     };
+
+    users.users = lib.mkIf (cfg.user == "meilisearch") {
+      meilisearch = {
+        description = "Meilisearch Service";
+        home = lib.mkDefault cfg.settings.db_path;
+        group = cfg.group;
+        isSystemUser = true;
+      };
+    };
+
+    users.groups = lib.mkIf (cfg.group == "meilisearch") {
+      meilisearch = { };
+    };
+
+    systemd.tmpfiles.rules = [
+      ''
+        d "${cfg.settings.db_path}" 0700 ${cfg.user} ${cfg.group} - -
+        d "${cfg.settings.dump_dir}" 0700 ${cfg.user} ${cfg.group} - -
+        d "${cfg.settings.snapshot_dir}" 0700 ${cfg.user} ${cfg.group} - -
+      ''
+    ];
   };
 }
