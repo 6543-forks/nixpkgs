@@ -127,6 +127,24 @@ in
       type = lib.types.nullOr lib.types.path;
     };
 
+    stateDir = lib.mkOption {
+      default = "/var/lib/meilisearch";
+      type = lib.types.str;
+      description = "Meilisearch data directory. Used to set defaults for db_path, dump_dir and snapshot_dir in settings.";
+    };
+
+    user = lib.mkOption {
+      type = lib.types.str;
+      default = "meilisearch";
+      description = "User account under which meilisearch runs.";
+    };
+
+    group = lib.mkOption {
+      type = lib.types.str;
+      default = "meilisearch";
+      description = "Group under which meilisearch runs.";
+    };
+
     settings = lib.mkOption {
       description = ''
         Configuration settings for Meilisearch.
@@ -172,11 +190,11 @@ in
       http_addr = "${cfg.listenAddress}:${toString cfg.listenPort}";
 
       # upstream's default for `db_path` is `/var/lib/meilisearch/data.ms/`, but ours is different for no reason.
-      db_path = lib.mkDefault "/var/lib/meilisearch";
+      db_path = lib.mkDefault "${cfg.stateDir}";
       # these are equivalent to the upstream defaults, because we set a working directory.
       # they are only set here for consistency with `db_path`.
-      dump_dir = lib.mkDefault "/var/lib/meilisearch/dumps";
-      snapshot_dir = lib.mkDefault "/var/lib/meilisearch/snapshots";
+      dump_dir = lib.mkDefault "${cfg.stateDir}/dumps";
+      snapshot_dir = lib.mkDefault "${cfg.stateDir}/snapshots";
 
       # this is intentionally different from upstream's default.
       no_analytics = lib.mkDefault true;
@@ -223,6 +241,10 @@ in
       );
 
       serviceConfig = {
+        Type = "simple";
+        User = cfg.user;
+        Group = cfg.group;
+        Restart = "always";
         LoadCredential = lib.mkMerge (
           [
             (lib.mkIf (cfg.masterKeyFile != null) [ "master_key:${cfg.masterKeyFile}" ])
@@ -232,11 +254,14 @@ in
           ) secrets-with-path
         );
         ExecStart = "${lib.getExe cfg.package} --config-file-path \${RUNTIME_DIRECTORY}/config.toml";
-        DynamicUser = true;
+        WorkingDirectory = cfg.stateDir;
         StateDirectory = "meilisearch";
-        WorkingDirectory = "%S/meilisearch";
         RuntimeDirectory = "meilisearch";
         RuntimeDirectoryMode = "0700";
+        # Access write directories
+        ReadWritePaths = [
+          cfg.stateDir
+        ];
 
         ProtectSystem = "strict";
         ProtectHome = true;
@@ -255,6 +280,7 @@ in
         RestrictSUIDSGID = true;
         LockPersonality = true;
         MemoryDenyWriteExecute = true;
+        RemoveIPC = true;
 
         # Meilisearch needs to determine cgroup memory limits to set its own memory limits.
         # This means this can't be set to "pid"
@@ -280,5 +306,25 @@ in
         UMask = "0077";
       };
     };
+
+    users.users = lib.mkIf (cfg.user == "meilisearch") {
+      meilisearch = {
+        description = "Meilisearch Service";
+        home = cfg.stateDir;
+        useDefaultShell = true;
+        group = cfg.group;
+        isSystemUser = true;
+      };
+    };
+
+    users.groups = lib.mkIf (cfg.group == "meilisearch") {
+      meilisearch = { };
+    };
+
+    systemd.tmpfiles.rules = [
+      ''
+        d "${cfg.stateDir}" 0700 ${cfg.user} ${cfg.group} - -
+      ''
+    ];
   };
 }
